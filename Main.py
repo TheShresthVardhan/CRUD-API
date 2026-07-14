@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
-from typing import Optional  # <-- New import for Stage 4
+from typing import Optional
 
 app = FastAPI(title="Task API", version="1.0")
 
@@ -16,26 +16,29 @@ current_id = 3
 class TaskCreate(BaseModel):
     title: str
 
-# <-- New Model for Stage 4 -->
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     done: Optional[bool] = None
 
-# --- Stage 1, 2 & 3 Endpoints ---
+# --- Endpoints ---
 @app.get("/")
 def read_root():
+    """Returns basic information about the API."""
     return {"name": "Task API", "version": "1.0", "endpoints": ["/tasks"]}
 
 @app.get("/health")
 def health_check():
+    """Checks if the server is running."""
     return {"status": "ok"}
 
 @app.get("/tasks")
 def get_tasks():
+    """Lists all tasks in the database."""
     return tasks_db
 
 @app.get("/tasks/{task_id}")
 def get_task(task_id: int):
+    """Retrieves a single task by its ID."""
     for task in tasks_db:
         if task["id"] == task_id:
             return task
@@ -43,6 +46,7 @@ def get_task(task_id: int):
 
 @app.post("/tasks", status_code=status.HTTP_201_CREATED)
 def create_task(task: TaskCreate):
+    """Creates a new task."""
     if not task.title or not task.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty")
     
@@ -52,29 +56,26 @@ def create_task(task: TaskCreate):
     tasks_db.append(new_task)
     return new_task
 
-# --- Stage 4 Endpoints ---
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, task_update: TaskUpdate):
-    # Validate: If a title is provided, it cannot be empty
+    """Updates an existing task's title or completion status."""
     if task_update.title is not None and not task_update.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty")
 
     for task in tasks_db:
         if task["id"] == task_id:
-            # Update only the fields that were actually sent in the request
             if task_update.title is not None:
                 task["title"] = task_update.title
             if task_update.done is not None:
                 task["done"] = task_update.done
             return task
-            
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 @app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: int):
+    """Deletes a task from the database."""
     for i, task in enumerate(tasks_db):
         if task["id"] == task_id:
             del tasks_db[i]
-            return # Returns 204 with no content automatically
-            
+            return 
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
