@@ -1,0 +1,40 @@
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    env_file:
+      - .env
+    volumes:
+
+          # This maps the data to a volume, ensuring persistence!
+      - postgres_data:/var/lib/postgresql/data
+
+            # This runs the init.sql automatically on the first boot
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  # EXTRA: Added Redis Service
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # Tell the API where to find Redis inside the Docker network
+      - REDIS_HOST=redis
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
