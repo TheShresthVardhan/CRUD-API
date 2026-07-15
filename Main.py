@@ -1,52 +1,64 @@
 # ===========================
 # 1. IMPORTS & DEPENDENCIES
 # ===========================
-# fastapi: The core framework for building the API.
-# pydantic: Used for defining and validating the shape of incoming data.
-# psycopg: The driver that allows Python to talk to the PostgreSQL database.
-# os: Allows Python to read environment variables (like our database password).
-# redis: The library used to connect to the Redis caching server.
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime, timedelta
 import psycopg
 from psycopg.rows import dict_row
 import os
-import redis  
+import redis
+import bcrypt
+import jwt
 
 # =======================
 # 2. APP INITIALIZATION
 # =======================
-# This creates the actual FastAPI application instance. 
-# The title and version here are what show up on the Swagger UI page.
-app = FastAPI(title="Task API with Postgres & Redis", version="2.0")
+app = FastAPI(title="Task API with Auth", version="3.0")
 
 # ==============================
 # 3. DATABASE CONNECTION SETUP
 # ==============================
-# It fetchs the connection string from the .env file. If it can't find one, 
-# it falls back to the default localhost string.
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:supersecretpassword@db:5432/taskdb")
 
-# This helper function opens a connection to the database. 
-# Using dict_row ensures our SQL results come back looking like Python dictionaries.
 def get_db_connection():
     return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 # ===========================
 # 4. REDIS CONNECTION SETUP
 # ===========================
-# It fetchs the Redis host from the environment variables (set in docker-compose.yml)
-# and create a client to talk to the Redis container.
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 
+# ==========================================
+# 5. SECURITY CONFIGURATION & UTILITIES
+# ==========================================
+# In a real production app, keep this key secret (e.g., in your .env file)
+SECRET_KEY = "your-super-secret-key-change-this"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Tells Swagger UI where to send the login credentials
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # ===================================
-# 5. DATA MODELS (INPUT VALIDATION)
+# 6. DATA MODELS (INPUT VALIDATION)
 # ===================================
-# These Pydantic models act as bouncers for our API. They dictate exactly 
-# what JSON data is allowed in for POST (creating) and PUT (updating) requests.
 class TaskCreate(BaseModel):
     title: str
 
@@ -54,64 +66,102 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = None
     done: Optional[bool] = None
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
 
-# ====================
-# OLD IN-MEMORY CODE
-# ====================
-"""
-tasks_db = [
-    {"id": 1, "title": "Buy milk", "done": False},
-    {"id": 2, "title": "Read HTTP documentation", "done": True},
-    {"id": 3, "title": "Build Stage 2", "done": False}
-]
-current_id = 3
-
-@app.get("/tasks")
-def get_tasks_in_memory(search: Optional[str] = None):
-    if search:
-        return [task for task in tasks_db if search.lower() in task["title"].lower()]
-    return tasks_db
-
-@app.post("/tasks", status_code=status.HTTP_201_CREATED)
-def create_task_in_memory(task: TaskCreate):
-    if not task.title or not task.title.strip():
-        raise HTTPException(status_code=400, detail="Title cannot be empty")
-    global current_id
-    current_id += 1
-    new_task = {"id": current_id, "title": task.title, "done": False}
-    tasks_db.append(new_task)
-    return new_task
-"""
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 # ==========================================
-# 6. UTILITY & DIAGNOSTIC ENDPOINTS
+# 7. AUTHENTICATION DEPENDENCY
 # ==========================================
-# These routes don't touch the main data; they exist to provide info 
-# about the API or check if internal services (like Redis) are running.
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Validates the token and returns the current username."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise credentials_exception
+        
+    return username
 
+# ==========================================
+# 8. UTILITY & DIAGNOSTIC ENDPOINTS
+# ==========================================
 @app.get("/")
 def read_root():
-    return {"name": "Task API", "version": "2.0", "endpoints": ["/tasks", "/redis-ping"]}
+    return {"name": "Task API", "version": "3.0", "endpoints": ["/tasks", "/redis-ping", "/register", "/login", "/users/me"]}
 
-# --- Redis Ping Endpoint ---
 @app.get("/redis-ping")
 def ping_redis():
     """Pings the Redis container to prove they are connected."""
     try:
-        # returns True if Redis is alive
         is_alive = redis_client.ping() 
         return {"redis_status": "alive" if is_alive else "offline"}
     except Exception as e:
         return {"redis_status": "error", "details": str(e)}
 
 # ==========================================
-# 7. CORE CRUD ENDPOINTS
+# 9. AUTHENTICATION ENDPOINTS
 # ==========================================
-# These endpoints handle the Create, Read, Update, and Delete operations.
-# Each endpoint opens a database connection, executes a specific SQL query,
-# commits the changes (if writing data), and returns the result.
+@app.post("/register", status_code=status.HTTP_201_CREATED)
+def register(user: UserCreate):
+    hashed_pw = hash_password(user.password)
+    
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE username = %s", (user.username,))
+            if cur.fetchone():
+                raise HTTPException(status_code=400, detail="Username already registered")
+            
+            cur.execute(
+                "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id, username",
+                (user.username, hashed_pw)
+            )
+            new_user = cur.fetchone()
+            conn.commit()
+            return {"message": "User created successfully", "username": new_user["username"]}
 
-# READ: Get all tasks
+@app.post("/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Swagger UI sends data here as form data, not JSON."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM users WHERE username = %s", (form_data.username,))
+            user = cur.fetchone()
+
+    if not user or not verify_password(form_data.password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(data={"sub": user["username"]})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# ==========================================
+# 10. PROTECTED ROUTES (Requires Login)
+# ==========================================
+@app.get("/users/me")
+def read_users_me(current_user: str = Depends(get_current_user)):
+    """This route is protected. It answers only for logged-in users."""
+    return {"message": f"Hello, {current_user}! You have access to this protected route."}
+
+# ==========================================
+# 11. CORE CRUD ENDPOINTS
+# ==========================================
 @app.get("/tasks")
 def get_tasks():
     with get_db_connection() as conn:
@@ -119,7 +169,6 @@ def get_tasks():
             cur.execute("SELECT * FROM tasks ORDER BY id ASC")
             return cur.fetchall()
 
-# READ: Get a single task by ID
 @app.get("/tasks/{task_id}")
 def get_task(task_id: int):
     with get_db_connection() as conn:
@@ -130,7 +179,6 @@ def get_task(task_id: int):
                 raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
             return task
         
-# CREATE: Add a new task to the database
 @app.post("/tasks", status_code=status.HTTP_201_CREATED)
 def create_task(task: TaskCreate):
     if not task.title or not task.title.strip():
@@ -143,10 +191,9 @@ def create_task(task: TaskCreate):
                 (task.title, False)
             )
             new_task = cur.fetchone()
-            conn.commit() # Save the change to the database
+            conn.commit() 
             return new_task
 
-# UPDATE: Modify an existing task
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, task_update: TaskUpdate):
     if task_update.title is not None and not task_update.title.strip():
@@ -154,7 +201,6 @@ def update_task(task_id: int, task_update: TaskUpdate):
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # Check if the task exists first
             cur.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
             existing = cur.fetchone()
             if not existing:
@@ -171,7 +217,6 @@ def update_task(task_id: int, task_update: TaskUpdate):
             conn.commit()
             return updated_task
 
-# DELETE: Remove a task from the database
 @app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: int):
     with get_db_connection() as conn:

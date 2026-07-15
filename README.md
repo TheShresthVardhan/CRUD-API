@@ -34,6 +34,10 @@ data in memory. 🧠
 | :---------- | :--------------- | :------------------------------------ |
 | GET         | `/`              | API root / info                       |
 | GET         | `/health`        | Health check ❤️‍🩹                       |
+| GET         | `/redis-ping`    | Redis connectivity check 🏓            |
+| POST        | `/register`      | Create a new user account 🧑‍💻          |
+| POST        | `/login`         | Log in, get a JWT back 🔑              |
+| GET         | `/users/me`      | 🔒 Protected — who am I logged in as? |
 | GET         | `/tasks`         | List all tasks 📋                     |
 | GET         | `/tasks/{id}`    | Get a specific task 🔍                |
 | POST        | `/tasks`         | Create a new task ➕                  |
@@ -181,3 +185,73 @@ The data survived the apocalypse. Container restarts, no problem. 🧟➡️💾
   caching in this assignment. 🏓
 - **⚡ Index:** Added `idx_tasks_title` on `tasks(title)` in `init.sql` to speed up
   title-based lookups/searches as the table grows. 📈
+
+## 🔐 Assignment 3: Authentication — "Who's calling?" 🕵️‍♀️
+
+Week 2, Assignment A3 — teach the API to recognize *who* it's talking to. Users can now
+register, log in, and get a token that proves their identity on every future request.
+No more anonymous free-for-all! 🙅‍♂️
+
+### 🔧 What changed
+
+- **🧑‍💻 Registration:** `POST /register` takes a `username` and `password`, hashes the
+  password with **bcrypt** (never, ever stored in plain text 🙈), and inserts a new row
+  into a brand-new `users` table. Duplicate usernames are rejected with a friendly `400`.
+- **🔑 Login:** `POST /login` checks the submitted password against the stored bcrypt
+  hash and, if it matches, hands back a **JWT** (JSON Web Token) — a signed, tamper-proof
+  little note that says "yep, this is really them" ✍️. Wrong username or password?
+  Honest `401 Unauthorized`, every time. Note: Swagger UI's login form sends this as
+  form data (not JSON), which is why `/login` uses `OAuth2PasswordRequestForm` under the
+  hood — but it's the same login endpoint either way.
+- **🛡️ Protected route:** `GET /users/me` only responds if you show up with a valid
+  token in the `Authorization: Bearer <token>` header. No token, an expired token, or a
+  garbled one? `401 Unauthorized`, politely shown the door 🚪. Got a real token? It
+  greets you by name. 👋
+- **🗄️ Schema:** `init.sql` adds a `users` table (`id`, `username`, `password_hash`) and
+  gives `tasks` a `user_id` foreign key (`ON DELETE CASCADE`) so tasks *can* belong to a
+  specific user going forward. The task routes themselves aren't scoped to the logged-in
+  user yet — that ownership/isolation wiring is next on the list, not part of this
+  assignment. 🧵
+- **🍪 Tokens, not sessions:** No server-side session store — the JWT itself carries the
+  username (`sub` claim) and an expiry (30 minutes ⏰), signed with a secret key so it
+  can't be forged. Swagger UI's built-in "Authorize" button (top right of `/docs`) is
+  the easiest way to paste in a token and try the protected route interactively. 🕹️
+
+### ▶️ How to try it (Swagger UI)
+
+1. `docker compose up` 🐳 (same as before).
+2. Visit `http://localhost:8000/docs`.
+3. `POST /register` with a username + password. 🧑‍💻
+4. `POST /login` with the same credentials → copy the `access_token` from the response. 📋
+5. Click **Authorize** 🔓 at the top of the page, paste in the token, hit Authorize.
+6. `GET /users/me` → should now greet you by username instead of `401`ing. 🎉
+7. Log out (or just use a bogus token) and try `/users/me` again → back to `401`,
+   proving the door really is locked when you're not on the list. 🚫
+
+### 🔬 Honest, verified 401s
+
+Checked by:
+
+1. 🎯 Hitting `GET /users/me` with **no token at all** → `401 Unauthorized`.
+2. 🧟 Hitting it again with a **deliberately mangled token** → `401 Unauthorized`.
+3. ⏳ Waiting out a token's 30-minute expiry and trying again → `401`, "Token has expired".
+4. ✅ Hitting it with a **fresh, valid token** from `/login` → `200 OK` with a personal
+   greeting.
+
+No silent failures, no guessing games — the API always tells you plainly whether it
+knows who you are. 🗣️
+
+### ⚠️ A note on the secret key
+
+The JWT signing key currently lives as a plain constant in `main.py` for simplicity in
+this assignment. In a real deployment it belongs in `.env` (alongside `DATABASE_URL`)
+and gets loaded via `os.getenv`, never committed to source control. Flagging it here so
+future-me doesn't forget! 📝
+
+### 🌟 What's next
+
+- **🧍 Per-user tasks:** Wire the `tasks.user_id` column up to `get_current_user` so each
+  person only sees and edits *their own* tasks — real `403 Forbidden` territory. 🚧
+- **🔁 Refresh tokens:** 30 minutes is short on purpose for this assignment; a refresh
+  flow would let sessions last longer without the security downsides of a
+  long-lived access token.
