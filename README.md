@@ -223,7 +223,7 @@ No more anonymous free-for-all! 🙅‍♂️
 2. Visit `http://localhost:8000/docs`.
 3. `POST /register` with a username + password. 🧑‍💻
 
-   ![Registering a user in Swagger UI](images/swagger-register.png)
+   ![Registering a user in Swagger UI](swagger-register.png)
 
 4. Click **Authorize** 🔓 at the top of the page. Since the API uses
    `OAuth2PasswordBearer` with the password flow, Swagger UI shows a login form right
@@ -231,16 +231,16 @@ No more anonymous free-for-all! 🙅‍♂️
    **Authorize**. No need to call `/login` yourself or copy/paste a token — Swagger UI
    does that handshake for you behind the scenes. 🪄
 
-   ![Entering username and password in the Authorize dialog](images/swagger-authorize-form.png)
+   ![Entering username and password in the Authorize dialog](swagger-authorize-form.png)
 
 5. Once authorized, the dialog confirms it and every subsequent request from Swagger UI
    automatically carries your token in the `Authorization` header. 🔒
 
-   ![Authorize dialog showing an authorized session](images/swagger-authorized.png)
+   ![Authorize dialog showing an authorized session](swagger-authorized.png)
 
 6. `GET /users/me` → should now greet you by username instead of `401`ing. 🎉
 
-   ![Successful authenticated request to /users/me](images/swagger-users-me-success.png)
+   ![Successful authenticated request to /users/me](swagger-users-me-success.png)
 
 7. Click **Logout** in the Authorize dialog (or just use a bogus token) and try
    `/users/me` again → back to `401`, proving the door really is locked when you're not
