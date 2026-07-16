@@ -222,11 +222,29 @@ No more anonymous free-for-all! 🙅‍♂️
 1. `docker compose up` 🐳 (same as before).
 2. Visit `http://localhost:8000/docs`.
 3. `POST /register` with a username + password. 🧑‍💻
-4. `POST /login` with the same credentials → copy the `access_token` from the response. 📋
-5. Click **Authorize** 🔓 at the top of the page, paste in the token, hit Authorize.
+
+   ![Registering a user in Swagger UI](images/swagger-register.png)
+
+4. Click **Authorize** 🔓 at the top of the page. Since the API uses
+   `OAuth2PasswordBearer` with the password flow, Swagger UI shows a login form right
+   there — just type in the **same username + password** you registered with and hit
+   **Authorize**. No need to call `/login` yourself or copy/paste a token — Swagger UI
+   does that handshake for you behind the scenes. 🪄
+
+   ![Entering username and password in the Authorize dialog](images/swagger-authorize-form.png)
+
+5. Once authorized, the dialog confirms it and every subsequent request from Swagger UI
+   automatically carries your token in the `Authorization` header. 🔒
+
+   ![Authorize dialog showing an authorized session](images/swagger-authorized.png)
+
 6. `GET /users/me` → should now greet you by username instead of `401`ing. 🎉
-7. Log out (or just use a bogus token) and try `/users/me` again → back to `401`,
-   proving the door really is locked when you're not on the list. 🚫
+
+   ![Successful authenticated request to /users/me](images/swagger-users-me-success.png)
+
+7. Click **Logout** in the Authorize dialog (or just use a bogus token) and try
+   `/users/me` again → back to `401`, proving the door really is locked when you're not
+   on the list. 🚫
 
 ### 🔬 Honest, verified 401s
 
