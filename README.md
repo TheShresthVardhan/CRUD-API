@@ -1,6 +1,6 @@
 # 🗂️ Task API
 
-A simple FastAPI CRUD API for managing tasks. Because "I'll remember that" is a lie we've all told ourselves.
+A simple FastAPI CRUD API for managing tasks, backed by SQLite. Because "I'll remember that" is a lie we've all told ourselves.
 
 ## 📁 Project structure
 
@@ -11,6 +11,7 @@ A simple FastAPI CRUD API for managing tasks. Because "I'll remember that" is a 
 ├── requirements.txt            # dependencies (fastapi, uvicorn)
 ├── README.md                   # this file (full of puns, you're welcome)
 ├── SwaggerUI 1.png             # Swagger UI screenshot
+├── tasks.db                    # the SQLite database (git-ignored, created on first run)
 └── src/
     ├── routes/tasks.py         # HTTP layer
     ├── services/tasks.py       # business rules
@@ -22,7 +23,23 @@ A simple FastAPI CRUD API for managing tasks. Because "I'll remember that" is a 
 
 ## 🏗️ A1 — Build your first CRUD API
 
-Built as Assignment A1 of the FlyRank Internship Backend Track: build your first CRUD API — create, read, update and delete tasks, see it in Swagger UI, and publish it to GitHub. Data lives only in memory on purpose (no database yet) — losing it on restart is a lesson, not a bug.
+Built as Assignment A1 of the FlyRank Internship Backend Track: a CRUD API where you can create, read, update and delete tasks, see it in Swagger UI, and publish it to GitHub.
+
+## 🗄️ Why SQLite?
+
+The API used to keep its tasks in a Python list in memory — restart the server and poof 💨, everything was gone. SQLite was chosen as the replacement because:
+
+- It's a **real SQL database** that still fits a small local project — no separate database server to install or run, just a library (Python's built-in `sqlite3`) and a file
+- Data **survives server restarts** (unlike the old in-memory list)
+- It's enough SQL to practice `SELECT`, `INSERT`, `UPDATE`, and `DELETE` without the overhead of Postgres or MySQL
+
+## 📄 Database file
+
+Tasks are stored in `tasks.db` in the project root (next to `main.py`).
+
+The file is created automatically the first time the app starts, with the table and three example tasks seeded on that first run — and only on the first run. It's listed in `.gitignore`, so each clone starts fresh with its own database.
+
+The table is created only if it doesn't exist, and the seed only runs when the table is empty — restarting a hundred times still gives you exactly three tasks.
 
 ## 🚀 Getting started
 
@@ -248,6 +265,20 @@ Pretty documentation with zero effort:
 
 ![Swagger UI screenshot](SwaggerUI%201.png)
 
-## 🐠 A note on in-memory storage
+## 📊 Example SQL query
 
-The server has a memory like a goldfish: restart it and poof 💨 — every task you created is gone, back to the three seeds. Why? Because data lives only in a Python list in memory, which vanishes the moment the process stops. That's not a bug, it's a lesson: get a real database, and your data finally gets a home. 🏠
+This is what `GET /tasks` runs under the hood (plus one query I ran by hand in DB Browser):
+
+```sql
+SELECT id, title, done FROM tasks ORDER BY id;
+```
+
+The one I ran by hand: `UPDATE tasks SET done = 1;` — it marked every task complete in a single statement, and `GET /tasks` showed the change immediately with no restart, because the API and DB Browser read the exact same file.
+
+<img src="DBBrowser1.png" alt="DB Browser — table structure" width="300">
+
+![DB Browser — browsing the data](DBBrowser2.png)
+
+## 💾 Persistence
+
+The goldfish era is over 🐠➡️🗄️: restart the server and your tasks are still there. The data now lives in `tasks.db`, a file on disk, instead of a Python list in memory — that's the entire difference between a demo and something real.
