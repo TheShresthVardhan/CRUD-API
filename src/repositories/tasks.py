@@ -51,8 +51,25 @@ class TaskRepository:
         self._conn.commit()
         return self.find_by_id(cur.lastrowid)
 
-    def remove(self, task: dict) -> None:
-        self._tasks.remove(task)
+    def update(self, task_id: int, changes: dict) -> dict | None:
+        sets = []
+        params = []
+        if "title" in changes:
+            sets.append("title = ?")
+            params.append(changes["title"])
+        if "done" in changes:
+            sets.append("done = ?")
+            params.append(int(changes["done"]))
+        self._conn.execute(
+            f"UPDATE tasks SET {', '.join(sets)} WHERE id = ?",
+            (*params, task_id),
+        )
+        self._conn.commit()
+        return self.find_by_id(task_id)
+
+    def remove(self, task_id: int) -> None:
+        self._conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        self._conn.commit()
 
     def reset(self) -> None:
         self._conn.execute("DELETE FROM tasks")

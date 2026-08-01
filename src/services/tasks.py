@@ -32,21 +32,20 @@ class TaskService:
         return self.repo.add(title.strip())
 
     def update_task(self, task_id: int, changes: dict) -> dict:
-        task = self._get(task_id)
+        if self.repo.find_by_id(task_id) is None:
+            raise NotFoundError(f"Task {task_id} not found")
         if not changes:
             raise ValidationError("request body must include title and/or done")
         if "title" in changes and (changes["title"] is None or not changes["title"].strip()):
             raise ValidationError("title is required and cannot be empty")
         if "done" in changes and changes["done"] is None:
             raise ValidationError("done must be true or false")
-        if "title" in changes:
-            task["title"] = changes["title"].strip()
-        if "done" in changes:
-            task["done"] = changes["done"]
-        return task
+        return self.repo.update(task_id, changes)
 
     def delete_task(self, task_id: int) -> None:
-        self.repo.remove(self._get(task_id))
+        if self.repo.find_by_id(task_id) is None:
+            raise NotFoundError(f"Task {task_id} not found")
+        self.repo.remove(task_id)
 
     def stats(self) -> dict:
         tasks = self.repo.find_all()
