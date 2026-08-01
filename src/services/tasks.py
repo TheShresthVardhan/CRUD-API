@@ -7,7 +7,6 @@ class TaskService:
 
     def __init__(self, repo: TaskRepository):
         self.repo = repo
-        self._next_id = repo.next_id()
 
     def _get(self, task_id: int) -> dict:
         task = self.repo.find_by_id(task_id)
@@ -30,10 +29,7 @@ class TaskService:
     def create_task(self, title: str | None) -> dict:
         if title is None or not title.strip():
             raise ValidationError("title is required and cannot be empty")
-        task = {"id": self._next_id, "title": title.strip(), "done": False}
-        self._next_id += 1
-        self.repo.add(task)
-        return task
+        return self.repo.add(title.strip())
 
     def update_task(self, task_id: int, changes: dict) -> dict:
         task = self._get(task_id)
@@ -62,5 +58,4 @@ class TaskService:
 
     def reset(self) -> list:
         self.repo.reset()
-        self._next_id = self.repo.next_id()
         return self.repo.find_all()

@@ -15,7 +15,6 @@ class TaskRepository:
         self._conn.row_factory = sqlite3.Row
         self._create_schema()
         self._seed_if_empty()
-        self._tasks = [dict(t) for t in SEED_TASKS]
 
     def _create_schema(self):
         self._conn.execute(
@@ -47,8 +46,10 @@ class TaskRepository:
     def _to_dict(row) -> dict:
         return {"id": row["id"], "title": row["title"], "done": bool(row["done"])}
 
-    def add(self, task: dict) -> None:
-        self._tasks.append(task)
+    def add(self, title: str) -> dict:
+        cur = self._conn.execute("INSERT INTO tasks (title, done) VALUES (?, 0)", (title,))
+        self._conn.commit()
+        return self.find_by_id(cur.lastrowid)
 
     def remove(self, task: dict) -> None:
         self._tasks.remove(task)
@@ -60,7 +61,3 @@ class TaskRepository:
             [(t["title"], int(t["done"])) for t in SEED_TASKS],
         )
         self._conn.commit()
-        self._tasks = [dict(t) for t in SEED_TASKS]
-
-    def next_id(self) -> int:
-        return max((t["id"] for t in self._tasks), default=0) + 1
