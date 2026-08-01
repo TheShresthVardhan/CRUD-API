@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Response
+from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
