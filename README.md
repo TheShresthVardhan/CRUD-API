@@ -6,10 +6,18 @@ A simple FastAPI CRUD API for managing tasks. Because "I'll remember that" is a 
 
 ```text
 .
-├── main.py          # the whole API — routes, in-memory storage, validation
-├── requirements.txt # dependencies (fastapi, uvicorn)
-├── README.md        # this file (full of puns, you're welcome)
-└── SwaggerUI 1.png  # Swagger UI screenshot
+├── main.py                     # starts the server — just the port
+├── app.py                      # wires everything into FastAPI
+├── requirements.txt            # dependencies (fastapi, uvicorn)
+├── README.md                   # this file (full of puns, you're welcome)
+├── SwaggerUI 1.png             # Swagger UI screenshot
+└── src/
+    ├── routes/tasks.py         # HTTP layer
+    ├── services/tasks.py       # business rules
+    ├── repositories/tasks.py   # data access
+    ├── middleware/error_handler.py
+    ├── deps.py                 # builds the repository + service
+    └── errors.py               # domain error types
 ```
 
 ## 🏗️ A1 — Build your first CRUD API
@@ -27,7 +35,7 @@ pip install -r requirements.txt
 Start the server:
 
 ```bash
-python3 -m uvicorn main:app --reload
+python3 main.py
 ```
 
 The API runs at http://localhost:8000. Interactive docs (Swagger UI) are at http://localhost:8000/docs — FastAPI generates them from the code, so there's no excuse for bad documentation. 😌
