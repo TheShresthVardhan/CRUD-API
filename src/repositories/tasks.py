@@ -36,10 +36,16 @@ class TaskRepository:
             self._conn.commit()
 
     def find_all(self) -> list:
-        return list(self._tasks)
+        rows = self._conn.execute("SELECT * FROM tasks ORDER BY id").fetchall()
+        return [self._to_dict(r) for r in rows]
 
     def find_by_id(self, task_id: int) -> dict | None:
-        return next((t for t in self._tasks if t["id"] == task_id), None)
+        row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        return self._to_dict(row) if row else None
+
+    @staticmethod
+    def _to_dict(row) -> dict:
+        return {"id": row["id"], "title": row["title"], "done": bool(row["done"])}
 
     def add(self, task: dict) -> None:
         self._tasks.append(task)
