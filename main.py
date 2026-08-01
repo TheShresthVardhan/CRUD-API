@@ -34,7 +34,7 @@ class TaskUpdate(BaseModel):
     done: bool | None = None
 
 
-@app.get("/", summary="API metadata")
+@app.get("/", summary="API metadata", description="Returns metadata about the API.")
 def root():
     return {
         "name": "Task API",
@@ -43,17 +43,17 @@ def root():
     }
 
 
-@app.get("/health", summary="Health check")
+@app.get("/health", summary="Health check", description="Returns whether the server is alive.")
 def health():
     return {"status": "ok"}
 
 
-@app.get("/tasks", summary="List all tasks")
+@app.get("/tasks", summary="List all tasks", description="Returns the whole task list.")
 def list_tasks():
     return tasks
 
 
-@app.get("/tasks/{task_id}", summary="Get a single task")
+@app.get("/tasks/{task_id}", summary="Get a single task", description="Returns one task by its id, or 404.")
 def get_task(task_id: int):
     task = find_task(task_id)
     if task is None:
@@ -61,7 +61,7 @@ def get_task(task_id: int):
     return task
 
 
-@app.post("/tasks", status_code=201, summary="Create a new task")
+@app.post("/tasks", status_code=201, summary="Create a new task", description="Adds a task with a fresh id; done starts as false. Missing or empty title returns 400.")
 def create_task(body: TaskCreate):
     global next_id
     if body.title is None or not body.title.strip():
@@ -72,7 +72,7 @@ def create_task(body: TaskCreate):
     return task
 
 
-@app.put("/tasks/{task_id}", summary="Update a task's title and/or done")
+@app.put("/tasks/{task_id}", summary="Update a task's title and/or done", description="Replaces the given fields; omitted fields stay unchanged. Empty body returns 400, unknown id returns 404.")
 def update_task(task_id: int, body: TaskUpdate):
     task = find_task(task_id)
     if task is None:
@@ -89,7 +89,7 @@ def update_task(task_id: int, body: TaskUpdate):
     return task
 
 
-@app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task")
+@app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task", description="Removes a task; returns 204 with no body, or 404 for an unknown id.")
 def delete_task(task_id: int):
     task = find_task(task_id)
     if task is None:
