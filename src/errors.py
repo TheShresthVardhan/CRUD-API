@@ -1,10 +1,6 @@
-class AppError(Exception):
+class ValidationError(Exception):
     pass
 
 
-class ValidationError(AppError):
-    pass
-
-
-class NotFoundError(AppError):
+class NotFoundError(Exception):
     pass

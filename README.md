@@ -1,6 +1,6 @@
 # 🗂️ Task API
 
-A simple FastAPI CRUD API for managing tasks, backed by SQLite. Because "I'll remember that" is a lie we've all told ourselves.
+A FastAPI CRUD API for managing tasks — the little promises you make to yourself and keep putting off until tomorrow. Backed by SQLite, because your to-do list deserves a home that actually remembers.
 
 ## 📁 Project structure
 
@@ -8,30 +8,58 @@ A simple FastAPI CRUD API for managing tasks, backed by SQLite. Because "I'll re
 .
 ├── main.py                     # starts the server — just the port
 ├── app.py                      # wires everything into FastAPI
-├── requirements.txt            # dependencies (fastapi, uvicorn)
-├── README.md                   # this file (full of puns, you're welcome)
+├── requirements.txt            # dependencies (fastapi, uvicorn) — the only two things it needs
+├── .gitignore                  # keeps tasks.db and __pycache__ out of git
+├── README.md                   # this file
 ├── SwaggerUI 1.png             # Swagger UI screenshot
+├── DBBrowser1.png              # DB Browser screenshot — table structure
+├── DBBrowser2.png              # DB Browser screenshot — browsing the data
 ├── tasks.db                    # the SQLite database (git-ignored, created on first run)
 └── src/
-    ├── routes/tasks.py         # HTTP layer
-    ├── services/tasks.py       # business rules
-    ├── repositories/tasks.py   # data access
-    ├── middleware/error_handler.py
-    ├── deps.py                 # builds the repository + service
-    └── errors.py               # domain error types
+    ├── __init__.py             # makes src a package
+    ├── routes/
+    │   ├── __init__.py
+    │   ├── tasks.py            # HTTP layer — the five CRUD endpoints
+    │   └── extras.py           # HTTP layer — the extras (/stats, /reset), the bonus tracks
+    ├── services/
+    │   ├── __init__.py
+    │   └── tasks.py            # business rules — the boss
+    ├── repositories/
+    │   ├── __init__.py
+    │   └── tasks.py            # data access — the vault keepers
+    ├── middleware/
+    │   ├── __init__.py
+    │   └── error_handler.py    # the safety net
+    ├── deps.py                 # builds the repository + service, no construction hats required
+    └── errors.py               # domain error types — the vocabulary of "oops"
 ```
 
 ## 🏗️ A1 — Build your first CRUD API
 
-Built as Assignment A1 of the FlyRank Internship Backend Track: a CRUD API where you can create, read, update and delete tasks, see it in Swagger UI, and publish it to GitHub.
+Built as Assignment A1 of the FlyRank Internship Backend Track: a CRUD API where you can create, read, update and delete tasks, see it in Swagger UI, and publish it to GitHub. This assignment, unlike the tasks in the app, actually got done.
+
+## 🗄️ A2 — Connecting your CRUD to the database
+
+Built as Assignment A2 of the FlyRank Internship Backend Track: A1's endpoints, now connected to a real SQLite database — the tasks finally have somewhere to call home, and it's a place that survives a restart. Read endpoints came first (Stage 1), then inserting (`INSERT`, Stage 2), then updating and deleting with SQL (Stage 3). See [Why SQLite?](#-why-sqlite) for the reasoning, and the commit history for the stage-by-stage journey.
 
 ## 🗄️ Why SQLite?
 
-The API used to keep its tasks in a Python list in memory — restart the server and poof 💨, everything was gone. SQLite was chosen as the replacement because:
+The API used to keep its tasks in a Python list in memory — restart the server and everything was gone. The list had all the staying power of a New Year's resolution. SQLite was chosen as the replacement because:
 
 - It's a **real SQL database** that still fits a small local project — no separate database server to install or run, just a library (Python's built-in `sqlite3`) and a file
 - Data **survives server restarts** (unlike the old in-memory list)
 - It's enough SQL to practice `SELECT`, `INSERT`, `UPDATE`, and `DELETE` without the overhead of Postgres or MySQL
+
+## 🐘 Why Postgres (eventually)?
+
+Postgres is the standard choice for production apps — the grown-up in the database room. The reasons to reach for it once this project grows up:
+
+- **Concurrency** — SQLite locks the whole database on writes; Postgres handles many writers at once, so it's required once the app has multiple users or instances
+- **Networking** — Postgres is a server apps connect to over the network; SQLite is a single file (fine for one local process, impossible to share across machines)
+- **Robustness** — crash recovery, roles/permissions, and battle-tested for data you can't afford to lose
+- **Extras** — JSON, full-text search, advanced indexing, and tooling (backups, monitoring) when the data outgrows a toy
+
+SQLite was right for the assignment (zero setup, real SQL). Postgres is the upgrade path — and since the API is layered (`src/repositories/`), swapping the database layer is the only thing that would change.
 
 ## 📄 Database file
 
@@ -39,7 +67,7 @@ Tasks are stored in `tasks.db` in the project root (next to `main.py`).
 
 The file is created automatically the first time the app starts, with the table and three example tasks seeded on that first run — and only on the first run. It's listed in `.gitignore`, so each clone starts fresh with its own database.
 
-The table is created only if it doesn't exist, and the seed only runs when the table is empty — restarting a hundred times still gives you exactly three tasks.
+The table is created only if it doesn't exist, and the seed only runs when the table is empty — restarting a hundred times still gives you exactly three tasks. Consistency is the seed of good database design.
 
 ## 🚀 Getting started
 
@@ -55,7 +83,7 @@ Start the server:
 python3 main.py
 ```
 
-The API runs at http://localhost:8000. Interactive docs (Swagger UI) are at http://localhost:8000/docs — FastAPI generates them from the code, so there's no excuse for bad documentation. 😌
+The API runs at http://localhost:8000. Interactive docs (Swagger UI) are at http://localhost:8000/docs — generated by FastAPI from the code.
 
 ## 📋 Endpoints — one table to rule them all
 
@@ -73,7 +101,7 @@ The API runs at http://localhost:8000. Interactive docs (Swagger UI) are at http
 
 ### GET /
 
-Returns metadata about the API. Meta, isn't it? 😉
+Returns metadata about the API. Meta, isn't it?
 
 Response
 
@@ -87,7 +115,7 @@ Response
 
 ### GET /health
 
-"It's alive!" 🧟 — real companies use exactly this endpoint to check the server is breathing.
+Health check endpoint — the API's annual physical. Returns the server status so you know it's alive and well.
 
 Response
 
@@ -97,23 +125,23 @@ Response
 
 ### GET /tasks
 
-The full lineup. 🎸 Optional query parameters filter the list (the part after `?` — filters, not addresses):
+Returns all tasks, sorted alphabetically by title — because even a to-do list deserves some order in its life. Optional query parameters filter the list in the database itself (the part after `?` — filters, not questions):
 
 | Query | Example | Effect |
 | --- | --- | --- |
 | `done` | `?done=true` | Only finished tasks |
 | `done` | `?done=false` | Only open tasks |
-| `search` | `?search=milk` | Title contains the word (case-insensitive) |
+| `search` | `?search=milk` | Title contains the word (case-insensitive `LIKE`) |
 
-Filters can be combined: `?done=false&search=book`. Put on your detective hat 🕵️ and hunt those tasks down.
+Filters can be combined: `?done=false&search=book`. Filter first, panic later.
 
 Response
 
 ```json
 [
-  { "id": 1, "title": "Buy groceries", "done": false },
-  { "id": 2, "title": "Walk the dog", "done": true },
-  { "id": 3, "title": "Read a book", "done": false }
+  { "id": 1, "title": "Buy groceries", "done": false, "created_at": "2026-08-01 09:15:00", "updated_at": "2026-08-01 09:15:00" },
+  { "id": 3, "title": "Read a book", "done": false, "created_at": "2026-08-01 09:15:00", "updated_at": "2026-08-01 09:15:00" },
+  { "id": 2, "title": "Walk the dog", "done": true, "created_at": "2026-08-01 09:15:00", "updated_at": "2026-08-01 10:02:11" }
 ]
 ```
 
@@ -124,7 +152,7 @@ One task to rule them all — well, one task, period. Returns it by id.
 Response (200)
 
 ```json
-{ "id": 1, "title": "Buy groceries", "done": false }
+{ "id": 1, "title": "Buy groceries", "done": false, "created_at": "2026-08-01 09:15:00", "updated_at": "2026-08-01 09:15:00" }
 ```
 
 Response (404)
@@ -133,11 +161,11 @@ Response (404)
 { "error": "Task 99 not found" }
 ```
 
-Task 99 is probably on a beach somewhere. 🏖️
+Task 99 is probably on a beach somewhere, sipping a piña colada. 🏖️
 
 ### POST /tasks
 
-A new task is born. 👶 The server gives it the next free id, sets `done` to `false`, and adds it to the list.
+A new task is born. 👶 The server gives it the next free id and sets `done` to `false` — because no task starts its life already finished.
 
 Request body
 
@@ -148,7 +176,7 @@ Request body
 Response (201)
 
 ```json
-{ "id": 4, "title": "Buy milk", "done": false }
+{ "id": 4, "title": "Buy milk", "done": false, "created_at": "2026-08-01 11:20:00", "updated_at": "2026-08-01 11:20:00" }
 ```
 
 Response (400)
@@ -157,11 +185,11 @@ Response (400)
 { "error": "title is required and cannot be empty" }
 ```
 
-No title, no task. The server never trusts the client. 🤨
+No title, no task. The server never trusts a nameless request. 🤨
 
 ### GET /stats
 
-Counting tasks so you don't have to. 🧮
+Counting tasks so you don't have to — and the database does the counting with `COUNT()` and `SUM()` in SQL, not by looping in code. It adds up.
 
 Response
 
@@ -177,7 +205,7 @@ curl http://localhost:8000/stats
 
 ### POST /reset
 
-The Ctrl+Z of your to-do list. ⌨️ Restores the three seed example tasks. Useful for demos and testing.
+The Ctrl+Z of your to-do list. ⌨️ Clears the database and restores the three seed example tasks with fresh timestamps. Useful for demos and testing — a clean slate, the way you've always wanted from life.
 
 Response (200)
 
@@ -197,7 +225,7 @@ curl -X POST http://localhost:8000/reset
 
 ### PUT /tasks/{id}
 
-Task got a glow-up. ✨ Updates a task's `title` and/or `done`. Send one or both fields; omitted fields stay unchanged.
+Task got a glow-up. ✨ Updates a task's `title` and/or `done`. Send one or both fields; omitted fields stay unchanged — the task's other half lives to fight another day.
 
 Request body
 
@@ -208,7 +236,7 @@ Request body
 Response (200)
 
 ```json
-{ "id": 1, "title": "Buy oat milk", "done": true }
+{ "id": 1, "title": "Buy oat milk", "done": true, "created_at": "2026-08-01 09:15:00", "updated_at": "2026-08-01 11:45:00" }
 ```
 
 Response (400)
@@ -225,7 +253,7 @@ Response (404)
 
 ### DELETE /tasks/{id}
 
-Bye-bye, task. 👋 Faster than your New Year's resolutions. 🥂
+Bye-bye, task. 👋 Gone faster than your New Year's resolutions. 🥂
 
 Response (204)
 
@@ -256,21 +284,21 @@ server: uvicorn
 content-length: 40
 content-type: application/json
 
-{"id":4,"title":"Buy milk","done":false}
+{"id":4,"title":"Buy milk","done":false,"created_at":"2026-08-01 11:20:00","updated_at":"2026-08-01 11:20:00"}
 ```
 
 ## 🎨 Swagger UI
 
-Pretty documentation with zero effort:
+The interactive docs in action — every endpoint, clickable and documented:
 
 ![Swagger UI screenshot](SwaggerUI%201.png)
 
 ## 📊 Example SQL query
 
-This is what `GET /tasks` runs under the hood (plus one query I ran by hand in DB Browser):
+This is what `GET /tasks` runs under the hood (plus one query I ran by hand in DB Browser — no API in sight, just raw SQL and confidence):
 
 ```sql
-SELECT id, title, done FROM tasks ORDER BY id;
+SELECT id, title, done, created_at, updated_at FROM tasks ORDER BY title;
 ```
 
 The one I ran by hand: `UPDATE tasks SET done = 1;` — it marked every task complete in a single statement, and `GET /tasks` showed the change immediately with no restart, because the API and DB Browser read the exact same file.
@@ -278,6 +306,10 @@ The one I ran by hand: `UPDATE tasks SET done = 1;` — it marked every task com
 <img src="DBBrowser1.png" alt="DB Browser — table structure" width="300">
 
 ![DB Browser — browsing the data](DBBrowser2.png)
+
+## 🧬 A note on migrations
+
+Adding `created_at` and `updated_at` meant changing the table's shape: fresh databases get the columns in `CREATE TABLE`, but an existing `tasks.db` needed `ALTER TABLE` plus a backfill `UPDATE` — two different code paths for the same table, depending on its history. That feeling of "this database has a past" is exactly why migrations exist.
 
 ## 💾 Persistence
 

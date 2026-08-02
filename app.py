@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from src.middleware.error_handler import register_error_handlers
-from src.routes.tasks import router
+from src.routes import extras, tasks
 
 app = FastAPI(
     title="Task API",
@@ -9,5 +9,6 @@ app = FastAPI(
     description="A simple CRUD API for managing tasks.",
 )
 
-app.include_router(router)
+app.include_router(tasks.router)
+app.include_router(extras.router)
 register_error_handlers(app)

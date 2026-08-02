@@ -15,13 +15,7 @@ class TaskService:
         return task
 
     def list_tasks(self, done: bool | None = None, search: str | None = None) -> list:
-        tasks = self.repo.find_all()
-        if done is not None:
-            tasks = [t for t in tasks if t["done"] == done]
-        if search:
-            needle = search.lower()
-            tasks = [t for t in tasks if needle in t["title"].lower()]
-        return tasks
+        return self.repo.find_all(done=done, search=search)
 
     def get_task(self, task_id: int) -> dict:
         return self._get(task_id)
@@ -48,12 +42,7 @@ class TaskService:
         self.repo.remove(task_id)
 
     def stats(self) -> dict:
-        tasks = self.repo.find_all()
-        return {
-            "total": len(tasks),
-            "done": sum(1 for t in tasks if t["done"]),
-            "open": sum(1 for t in tasks if not t["done"]),
-        }
+        return self.repo.stats()
 
     def reset(self) -> list:
         self.repo.reset()

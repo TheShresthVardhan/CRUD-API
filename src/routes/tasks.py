@@ -39,16 +39,6 @@ def list_tasks(
     return service.list_tasks(done=done, search=search)
 
 
-@router.get("/stats", summary="Task counts", description="Returns total, done and open counts.")
-def stats(service: TaskService = Depends(get_service)):
-    return service.stats()
-
-
-@router.post("/reset", summary="Reset to seed tasks", description="Restores the three example tasks.")
-def reset(service: TaskService = Depends(get_service)):
-    return service.reset()
-
-
 @router.get("/tasks/{task_id}", summary="Get a single task", description="Returns one task by its id, or 404.")
 def get_task(task_id: int, service: TaskService = Depends(get_service)):
     return service.get_task(task_id)
