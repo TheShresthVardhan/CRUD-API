@@ -10,6 +10,7 @@ A FastAPI CRUD API for managing tasks — the little promises you make to yourse
 ├── app.py                      # wires everything into FastAPI
 ├── requirements.txt            # dependencies (fastapi, uvicorn) — the only two things it needs
 ├── .gitignore                  # keeps tasks.db and __pycache__ out of git
+├── LICENSE                     # MIT License
 ├── README.md                   # this file
 ├── SwaggerUI 1.png             # Swagger UI screenshot
 ├── DBBrowser1.png              # DB Browser screenshot — table structure
